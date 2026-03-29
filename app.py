@@ -73,7 +73,6 @@ data["Predicted_Final_Score"] = model.predict(
     scaler.transform(data[features])
 )
 
-st.subheader("📊 Dataset with Predicted Final Score")
 st.write(data.head())
 
 # -------- FEATURE IMPORTANCE --------
