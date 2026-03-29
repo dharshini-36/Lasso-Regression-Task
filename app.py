@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -14,35 +15,58 @@ st.title("🎓 Student Performance Prediction (Lasso Regression)")
 # -------- LOAD DATA --------
 @st.cache_data
 def load_data():
-    try:
+    files = os.listdir()
+
+    if "student_data.csv" in files:
         return pd.read_csv("student_performance.csv")
-    except:
+    elif "student_data.xlsx" in files:
         return pd.read_excel("student_performance.xlsx")
+    elif "student_performance.xlsx" in files:
+        return pd.read_excel("student_performance.xlsx")
+    else:
+        st.error("❌ Dataset file not found. Upload it to GitHub.")
+        st.stop()
 
 data = load_data()
 
-# -------- CLEAN COLUMN NAMES (VERY IMPORTANT) --------
+# -------- CLEAN COLUMN NAMES --------
 data.columns = data.columns.str.strip()
 data.columns = data.columns.str.replace(" ", "_")
 data.columns = data.columns.str.replace("%", "")
+data.columns = data.columns.str.replace("(", "")
+data.columns = data.columns.str.replace(")", "")
 
-# Debug (optional)
-st.write("📌 Columns in dataset:", list(data.columns))
+st.write("📌 Cleaned Columns:", list(data.columns))
 
 # -------- SHOW DATA --------
 if st.checkbox("👀 Show Dataset"):
     st.write(data.head())
 
-# -------- FEATURES --------
-features = ["Hours_Studied", "Attendance", "Sleep_Hours", "Previous_Scores", "Internet_Usage"]
-target = "Final_Score"
+# -------- AUTO DETECT FEATURES --------
+features = []
+target = None
 
-# -------- CHECK IF COLUMNS EXIST --------
-missing_cols = [col for col in features + [target] if col not in data.columns]
+for col in data.columns:
+    if "Hours" in col:
+        features.append(col)
+    elif "Attendance" in col:
+        features.append(col)
+    elif "Sleep" in col:
+        features.append(col)
+    elif "Previous" in col:
+        features.append(col)
+    elif "Internet" in col:
+        features.append(col)
+    elif "Final" in col:
+        target = col
 
-if missing_cols:
-    st.error(f"❌ Missing columns in dataset: {missing_cols}")
+# -------- VALIDATION --------
+if len(features) != 5 or target is None:
+    st.error("❌ Could not map dataset columns automatically.")
     st.stop()
+
+st.write("📊 Features used:", features)
+st.write("🎯 Target:", target)
 
 X = data[features]
 y = data[target]
@@ -71,7 +95,7 @@ if st.button("🚀 Train Model"):
     st.write(f"**MSE:** {mse:.2f}")
     st.write(f"**R² Score:** {r2:.2f}")
 
-    # -------- PREDICTIONS TABLE --------
+    # -------- PREDICTIONS --------
     results = pd.DataFrame({
         "Actual": y_test.values,
         "Predicted": y_pred
@@ -101,10 +125,10 @@ if "model" in st.session_state:
     if st.checkbox("👉 Enable Custom Prediction"):
 
         hours = st.number_input("Hours Studied", 0.0)
-        attendance = st.number_input("Attendance (%)", 0.0, 100.0)
+        attendance = st.number_input("Attendance", 0.0, 100.0)
         sleep = st.number_input("Sleep Hours", 0.0)
         previous = st.number_input("Previous Scores", 0.0)
-        internet = st.number_input("Internet Usage (hrs)", 0.0)
+        internet = st.number_input("Internet Usage", 0.0)
 
         if st.button("Predict Score"):
 
