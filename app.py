@@ -15,9 +15,9 @@ st.title("🎓 Student Performance Prediction (Lasso Regression)")
 @st.cache_data
 def load_data():
     try:
-        return pd.read_csv("student_data.csv")
+        return pd.read_csv("student_performance.csv")
     except:
-        return pd.read_excel("student_performace.xlsx")
+        return pd.read_excel("student_performance.xlsx")
 
 data = load_data()
 
