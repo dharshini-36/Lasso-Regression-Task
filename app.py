@@ -14,7 +14,7 @@ st.title("🎓 Student Performance Prediction (Lasso Regression)")
 # Load dataset
 @st.cache_data
 def load_data():
-    return pd.read_xlsx("student_data.xlsx")
+    return pd.read_excel("student_data.xlsx")
 
 data = load_data()
 
