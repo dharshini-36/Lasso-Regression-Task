@@ -38,7 +38,7 @@ st.write("📌 Available Columns:", list(data.columns))
 if st.checkbox("👀 Show Dataset"):
     st.write(data.head())
 
-# -------- USER SELECT COLUMNS --------
+# -------- SELECT FEATURES --------
 st.subheader("🛠️ Select Features and Target")
 
 selected_features = st.multiselect(
@@ -51,80 +51,77 @@ target = st.selectbox(
     data.columns
 )
 
-# -------- VALIDATION --------
+# -------- AUTO TRAIN MODEL --------
 if len(selected_features) == 5 and target:
+
+    st.success("✅ Model trained successfully!")
 
     X = data[selected_features]
     y = data[target]
 
-    # -------- TRAIN MODEL --------
-    if st.button("🚀 Train Model"):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
+    model = Lasso(alpha=0.5)
+    model.fit(X_train_scaled, y_train)
 
-        model = Lasso(alpha=0.5)
-        model.fit(X_train_scaled, y_train)
+    y_pred = model.predict(X_test_scaled)
 
-        y_pred = model.predict(X_test_scaled)
+    # -------- METRICS --------
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
 
-        # -------- METRICS --------
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
+    st.subheader("📊 Model Performance")
+    st.write(f"**MSE:** {mse:.2f}")
+    st.write(f"**R² Score:** {r2:.2f}")
 
-        st.subheader("📊 Model Performance")
-        st.write(f"**MSE:** {mse:.2f}")
-        st.write(f"**R² Score:** {r2:.2f}")
+    # -------- RESULTS --------
+    results = pd.DataFrame({
+        "Actual": y_test.values,
+        "Predicted": y_pred
+    })
 
-        # -------- RESULTS --------
-        results = pd.DataFrame({
-            "Actual": y_test.values,
-            "Predicted": y_pred
-        })
+    st.subheader("📈 Predictions on Test Data")
+    st.write(results.head())
 
-        st.subheader("📈 Predictions on Test Data")
-        st.write(results.head())
+    # -------- FEATURE IMPORTANCE --------
+    coeff_df = pd.DataFrame({
+        "Feature": selected_features,
+        "Coefficient": model.coef_
+    })
 
-        # -------- FEATURE IMPORTANCE --------
-        coeff_df = pd.DataFrame({
-            "Feature": selected_features,
-            "Coefficient": model.coef_
-        })
+    st.subheader("🔍 Feature Importance")
+    st.write(coeff_df)
 
-        st.subheader("🔍 Feature Importance")
-        st.write(coeff_df)
-
-        # Save
-        st.session_state["model"] = model
-        st.session_state["scaler"] = scaler
-        st.session_state["features"] = selected_features
+    # Save model
+    st.session_state["model"] = model
+    st.session_state["scaler"] = scaler
+    st.session_state["features"] = selected_features
 
 # -------- USER PREDICTION --------
 st.subheader("🎯 Try Your Own Prediction")
 
 if "model" in st.session_state:
 
-    if st.checkbox("👉 Enable Custom Prediction"):
+    inputs = []
 
-        inputs = []
+    for feature in st.session_state["features"]:
+        val = st.number_input(f"{feature}", 0.0)
+        inputs.append(val)
 
-        for feature in st.session_state["features"]:
-            val = st.number_input(f"{feature}", 0.0)
-            inputs.append(val)
+    if st.button("Predict Score"):
 
-        if st.button("Predict Score"):
+        input_data = np.array([inputs])
+        input_scaled = st.session_state["scaler"].transform(input_data)
 
-            input_data = np.array([inputs])
-            input_scaled = st.session_state["scaler"].transform(input_data)
+        prediction = st.session_state["model"].predict(input_scaled)
 
-            prediction = st.session_state["model"].predict(input_scaled)
-
-            st.success(f"🎉 Predicted Final Score: {prediction[0]:.2f}")
+        st.success(f"🎉 Predicted Final Score: {prediction[0]:.2f}")
 
 else:
-    st.info("⚠️ Train model first after selecting columns.")
+    st.info("⚠️ Please select 5 features and a target to train the model.")
