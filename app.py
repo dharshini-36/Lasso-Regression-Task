@@ -15,113 +15,89 @@ st.title("🎓 Student Performance Prediction (Lasso Regression)")
 # -------- LOAD DATA --------
 @st.cache_data
 def load_data():
+    import os
     files = os.listdir()
+    
+    st.write("📁 Files:", files)
 
-    if "student_data.csv" in files:
-        return pd.read_csv("student_data.csv")
-    elif "student_data.xlsx" in files:
-        return pd.read_excel("student_data.xlsx")
-    elif "student_performance.xlsx" in files:
-        return pd.read_excel("student_performance.xlsx")
+    if "student_performace.xlsx" in files:
+        return pd.read_excel("student_performace.xlsx")
     else:
-        st.error("❌ Dataset file not found. Upload it to GitHub.")
+        st.error("❌ File not found. Check file name in GitHub.")
         st.stop()
-
 data = load_data()
 
-# -------- CLEAN COLUMN NAMES --------
-data.columns = data.columns.str.strip()
+st.write("📊 Dataset Preview")
+st.write(data.head())
 
-st.write("📌 Available Columns:", list(data.columns))
+# -------- DEFINE FEATURES --------
+features = [
+    "attendance_percentage",
+    "previous_gpa",
+    "study_hours_per_day",
+    "assignment_score",
+    "midterm_marks"
+]
 
-# -------- SHOW DATA --------
-if st.checkbox("👀 Show Dataset"):
-    st.write(data.head())
+target = "final_result"
 
-# -------- SELECT FEATURES --------
-st.subheader("🛠️ Select Features and Target")
+X = data[features]
+y = data[target]
 
-selected_features = st.multiselect(
-    "Select 5 Feature Columns",
-    data.columns
+# -------- TRAIN MODEL --------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
 )
 
-target = st.selectbox(
-    "Select Target Column",
-    data.columns
-)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-# -------- AUTO TRAIN MODEL --------
-if len(selected_features) == 5 and target:
+model = Lasso(alpha=0.5)
+model.fit(X_train_scaled, y_train)
 
-    st.success("✅ Model trained successfully!")
+y_pred = model.predict(X_test_scaled)
 
-    X = data[selected_features]
-    y = data[target]
+# -------- MODEL PERFORMANCE --------
+st.subheader("📊 Model Performance")
+st.write(f"**MSE:** {mean_squared_error(y_test, y_pred):.2f}")
+st.write(f"**R² Score:** {r2_score(y_test, y_pred):.2f}")
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+# -------- DATASET PREDICTIONS --------
+st.subheader("📈 Predicted Final Scores (Dataset)")
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+results = X_test.copy()
+results["Actual"] = y_test.values
+results["Predicted"] = y_pred
 
-    model = Lasso(alpha=0.5)
-    model.fit(X_train_scaled, y_train)
+st.write(results.head())
 
-    y_pred = model.predict(X_test_scaled)
+# -------- FEATURE IMPORTANCE --------
+st.subheader("🔍 Feature Importance")
 
-    # -------- METRICS --------
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+coeff_df = pd.DataFrame({
+    "Feature": features,
+    "Coefficient": model.coef_
+})
 
-    st.subheader("📊 Model Performance")
-    st.write(f"**MSE:** {mse:.2f}")
-    st.write(f"**R² Score:** {r2:.2f}")
-
-    # -------- RESULTS --------
-    results = pd.DataFrame({
-        "Actual": y_test.values,
-        "Predicted": y_pred
-    })
-
-    st.subheader("📈 Predictions on Test Data")
-    st.write(results.head())
-
-    # -------- FEATURE IMPORTANCE --------
-    coeff_df = pd.DataFrame({
-        "Feature": selected_features,
-        "Coefficient": model.coef_
-    })
-
-    st.subheader("🔍 Feature Importance")
-    st.write(coeff_df)
-
-    # Save model
-    st.session_state["model"] = model
-    st.session_state["scaler"] = scaler
-    st.session_state["features"] = selected_features
+st.write(coeff_df)
 
 # -------- USER PREDICTION --------
-st.subheader("🎯 Try Your Own Prediction")
+st.subheader("🎯 Predict Your Own Score")
 
-if "model" in st.session_state:
+if st.checkbox("👉 Enter your data"):
 
-    inputs = []
+    attendance = st.number_input("Attendance (%)", 0.0, 100.0)
+    gpa = st.number_input("Previous GPA", 0.0)
+    study = st.number_input("Study Hours per Day", 0.0)
+    assignment = st.number_input("Assignment Score", 0.0)
+    midterm = st.number_input("Midterm Marks", 0.0)
 
-    for feature in st.session_state["features"]:
-        val = st.number_input(f"{feature}", 0.0)
-        inputs.append(val)
+    if st.button("Predict"):
 
-    if st.button("Predict Score"):
+        input_data = np.array([[attendance, gpa, study, assignment, midterm]])
+        input_scaled = scaler.transform(input_data)
 
-        input_data = np.array([inputs])
-        input_scaled = st.session_state["scaler"].transform(input_data)
+        prediction = model.predict(input_scaled)
 
-        prediction = st.session_state["model"].predict(input_scaled)
-
-        st.success(f"🎉 Predicted Final Score: {prediction[0]:.2f}")
-
-else:
-    st.info("⚠️ Please select 5 features and a target to train the model.")
+        st.success(f"🎉 Predicted Final Result: {prediction[0]:.2f}")
