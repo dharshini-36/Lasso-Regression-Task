@@ -21,7 +21,7 @@ def load_data():
     st.write("📁 Files:", files)
 
     if "student_performace.xlsx" in files:
-        return pd.read_excel("student_performace.xlsx")
+        return pd.read_excel("student_performance.xlsx")
     else:
         st.error("❌ File not found. Check file name in GitHub.")
         st.stop()
