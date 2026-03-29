@@ -17,7 +17,7 @@ def load_data():
     try:
         return pd.read_csv("student_data.csv")
     except:
-        return pd.read_excel("student_data.xlsx")
+        return pd.read_excel("student_performace.xlsx")
 
 data = load_data()
 
