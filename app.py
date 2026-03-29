@@ -71,7 +71,7 @@ st.write(f"**R² Score:** {r2_score(y_test, y_pred):.2f}")
 st.subheader("📈 Predicted Final Scores (Dataset)")
 
 results = X_test.copy()
-results["Actual"] = y_test.values
+results["Actual"] = y_test
 results["Predicted"] = y_pred
 
 st.write(results.head())
