@@ -103,4 +103,8 @@ if st.checkbox("👉 Enter your data"):
 
         prediction = model.predict(input_scaled)
 
-        st.success(f"🎉 Predicted Final Result: {prediction[0]:.2f}")
+        if prediction[0] < 0.5:
+            result = "Pass"
+        else:
+            result = "Fail"
+        st.success(f"🎉 Predicted Final Result: {result}")
