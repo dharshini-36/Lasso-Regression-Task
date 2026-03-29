@@ -8,43 +8,36 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error, r2_score
 
-st.set_page_config(page_title="Student Performance Predictor", layout="centered")
+st.set_page_config(page_title="Student Exam Score Predictor", layout="centered")
 
-st.title("🎓 Student Performance Prediction (Lasso Regression)")
+st.title("🎓 Student Exam Score Prediction (Lasso Regression)")
 
 # -------- LOAD DATA --------
 @st.cache_data
 def load_data():
-    import os
-    files = os.listdir()
-
-    if "student_performance.xlsx" in files:
-        return pd.read_excel("student_performance.xlsx")
+    if "student_exam_scores.csv" in os.listdir():
+        return pd.read_csv("student_exam_scores.csv")
     else:
-        st.error("❌ File not found. Check file name in GitHub.")
+        st.error("❌ Dataset not found")
         st.stop()
+
 data = load_data()
 
-st.write("📊 Dataset Preview")
+st.subheader("📊 Dataset Preview")
 st.write(data.head())
 
-# -------- DEFINE FEATURES --------
-features = [
-    "attendance_percentage",
-    "previous_gpa",
-    "study_hours_per_day",
-    "assignment_score",
-    "midterm_marks"
-]
+# -------- FEATURES & TARGET --------
+target = "exam_score"
 
-target = "final_result"
+# Automatically take all other columns as features
+features = [col for col in data.columns if col != target]
 
 X = data[features]
 y = data[target]
 
-# 🔥 FIX: Convert target (Final Result) to numeric
-if y.dtype == "object":
-    y = pd.factorize(y)[0]
+# Ensure numeric
+X = X.apply(pd.to_numeric, errors='coerce')
+X = X.fillna(0)
 
 # -------- TRAIN MODEL --------
 X_train, X_test, y_train, y_test = train_test_split(
@@ -60,23 +53,22 @@ model.fit(X_train_scaled, y_train)
 
 y_pred = model.predict(X_test_scaled)
 
-# -------- MODEL PERFORMANCE --------
+# -------- PERFORMANCE --------
 st.subheader("📊 Model Performance")
 st.write(f"**MSE:** {mean_squared_error(y_test, y_pred):.2f}")
 st.write(f"**R² Score:** {r2_score(y_test, y_pred):.2f}")
 
 # -------- DATASET PREDICTIONS --------
-st.subheader("📈 Predicted Final Scores (Dataset)")
+st.subheader("📈 Dataset with Predicted Exam Scores")
 
-# Add predictions to dataset
-data["Predicted_Final_Score"] = model.predict(
-    scaler.transform(data[features])
+data["Predicted_Exam_Score"] = model.predict(
+    scaler.transform(X)
 )
 
 st.write(data.head())
 
 # -------- FEATURE IMPORTANCE --------
-st.subheader("🔍 Feature Importance")
+st.subheader("🔍 Feature Importance (Lasso)")
 
 coeff_df = pd.DataFrame({
     "Feature": features,
@@ -85,26 +77,22 @@ coeff_df = pd.DataFrame({
 
 st.write(coeff_df)
 
-# -------- USER PREDICTION --------
+# -------- USER INPUT --------
 st.subheader("🎯 Predict Your Own Score")
 
 if st.checkbox("👉 Enter your data"):
 
-    attendance = st.number_input("Attendance (%)", 0.0, 100.0)
-    gpa = st.number_input("Previous GPA", 0.0)
-    study = st.number_input("Study Hours per Day", 0.0)
-    assignment = st.number_input("Assignment Score", 0.0)
-    midterm = st.number_input("Midterm Marks", 0.0)
+    user_input = []
+
+    for feature in features:
+        val = st.number_input(f"{feature}", 0.0)
+        user_input.append(val)
 
     if st.button("Predict"):
 
-        input_data = np.array([[attendance, gpa, study, assignment, midterm]])
-        input_scaled = scaler.transform(input_data)
+        input_array = np.array([user_input])
+        input_scaled = scaler.transform(input_array)
 
         prediction = model.predict(input_scaled)
 
-        if prediction[0] < 0.5:
-            result = "Pass"
-        else:
-            result = "Fail"
-        st.success(f"🎉 Predicted Final Result: {result}")
+        st.success(f"🎉 Predicted Exam Score: {prediction[0]:.2f}")
