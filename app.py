@@ -18,9 +18,9 @@ def load_data():
     files = os.listdir()
 
     if "student_data.csv" in files:
-        return pd.read_csv("student_performance.csv")
+        return pd.read_csv("student_data.csv")
     elif "student_data.xlsx" in files:
-        return pd.read_excel("student_performance.xlsx")
+        return pd.read_excel("student_data.xlsx")
     elif "student_performance.xlsx" in files:
         return pd.read_excel("student_performance.xlsx")
     else:
@@ -31,91 +31,78 @@ data = load_data()
 
 # -------- CLEAN COLUMN NAMES --------
 data.columns = data.columns.str.strip()
-data.columns = data.columns.str.replace(" ", "_")
-data.columns = data.columns.str.replace("%", "")
-data.columns = data.columns.str.replace("(", "")
-data.columns = data.columns.str.replace(")", "")
 
-st.write("📌 Cleaned Columns:", list(data.columns))
+st.write("📌 Available Columns:", list(data.columns))
 
 # -------- SHOW DATA --------
 if st.checkbox("👀 Show Dataset"):
     st.write(data.head())
 
-# -------- AUTO DETECT FEATURES --------
-features = []
-target = None
+# -------- USER SELECT COLUMNS --------
+st.subheader("🛠️ Select Features and Target")
 
-for col in data.columns:
-    if "Hours" in col:
-        features.append(col)
-    elif "Attendance" in col:
-        features.append(col)
-    elif "Sleep" in col:
-        features.append(col)
-    elif "Previous" in col:
-        features.append(col)
-    elif "Internet" in col:
-        features.append(col)
-    elif "Final" in col:
-        target = col
+selected_features = st.multiselect(
+    "Select 5 Feature Columns",
+    data.columns
+)
+
+target = st.selectbox(
+    "Select Target Column",
+    data.columns
+)
 
 # -------- VALIDATION --------
-if len(features) != 5 or target is None:
-    st.error("❌ Could not map dataset columns automatically.")
-    st.stop()
+if len(selected_features) == 5 and target:
 
-st.write("📊 Features used:", features)
-st.write("🎯 Target:", target)
+    X = data[selected_features]
+    y = data[target]
 
-X = data[features]
-y = data[target]
+    # -------- TRAIN MODEL --------
+    if st.button("🚀 Train Model"):
 
-# -------- TRAIN MODEL --------
-if st.button("🚀 Train Model"):
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+        model = Lasso(alpha=0.5)
+        model.fit(X_train_scaled, y_train)
 
-    model = Lasso(alpha=0.5)
-    model.fit(X_train_scaled, y_train)
+        y_pred = model.predict(X_test_scaled)
 
-    y_pred = model.predict(X_test_scaled)
+        # -------- METRICS --------
+        mse = mean_squared_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
 
-    # -------- METRICS --------
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+        st.subheader("📊 Model Performance")
+        st.write(f"**MSE:** {mse:.2f}")
+        st.write(f"**R² Score:** {r2:.2f}")
 
-    st.subheader("📊 Model Performance")
-    st.write(f"**MSE:** {mse:.2f}")
-    st.write(f"**R² Score:** {r2:.2f}")
+        # -------- RESULTS --------
+        results = pd.DataFrame({
+            "Actual": y_test.values,
+            "Predicted": y_pred
+        })
 
-    # -------- PREDICTIONS --------
-    results = pd.DataFrame({
-        "Actual": y_test.values,
-        "Predicted": y_pred
-    })
+        st.subheader("📈 Predictions on Test Data")
+        st.write(results.head())
 
-    st.subheader("📈 Predictions on Test Data")
-    st.write(results.head())
+        # -------- FEATURE IMPORTANCE --------
+        coeff_df = pd.DataFrame({
+            "Feature": selected_features,
+            "Coefficient": model.coef_
+        })
 
-    # -------- FEATURE IMPORTANCE --------
-    coeff_df = pd.DataFrame({
-        "Feature": features,
-        "Coefficient": model.coef_
-    })
+        st.subheader("🔍 Feature Importance")
+        st.write(coeff_df)
 
-    st.subheader("🔍 Feature Importance (Lasso)")
-    st.write(coeff_df)
-
-    # Save model
-    st.session_state["model"] = model
-    st.session_state["scaler"] = scaler
+        # Save
+        st.session_state["model"] = model
+        st.session_state["scaler"] = scaler
+        st.session_state["features"] = selected_features
 
 # -------- USER PREDICTION --------
 st.subheader("🎯 Try Your Own Prediction")
@@ -124,15 +111,15 @@ if "model" in st.session_state:
 
     if st.checkbox("👉 Enable Custom Prediction"):
 
-        hours = st.number_input("Hours Studied", 0.0)
-        attendance = st.number_input("Attendance", 0.0, 100.0)
-        sleep = st.number_input("Sleep Hours", 0.0)
-        previous = st.number_input("Previous Scores", 0.0)
-        internet = st.number_input("Internet Usage", 0.0)
+        inputs = []
+
+        for feature in st.session_state["features"]:
+            val = st.number_input(f"{feature}", 0.0)
+            inputs.append(val)
 
         if st.button("Predict Score"):
 
-            input_data = np.array([[hours, attendance, sleep, previous, internet]])
+            input_data = np.array([inputs])
             input_scaled = st.session_state["scaler"].transform(input_data)
 
             prediction = st.session_state["model"].predict(input_scaled)
@@ -140,4 +127,4 @@ if "model" in st.session_state:
             st.success(f"🎉 Predicted Final Score: {prediction[0]:.2f}")
 
 else:
-    st.info("⚠️ Please train the model first.")
+    st.info("⚠️ Train model first after selecting columns.")
