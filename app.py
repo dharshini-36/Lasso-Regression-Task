@@ -44,6 +44,10 @@ target = "final_result"
 X = data[features]
 y = data[target]
 
+# 🔥 FIX: Convert target (Final Result) to numeric
+if y.dtype == "object":
+    y = pd.factorize(y)[0]
+
 # -------- TRAIN MODEL --------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
