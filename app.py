@@ -17,8 +17,6 @@ st.title("🎓 Student Performance Prediction (Lasso Regression)")
 def load_data():
     import os
     files = os.listdir()
-    
-    st.write("📁 Files:", files)
 
     if "student_performance.xlsx" in files:
         return pd.read_excel("student_performance.xlsx")
@@ -70,11 +68,13 @@ st.write(f"**R² Score:** {r2_score(y_test, y_pred):.2f}")
 # -------- DATASET PREDICTIONS --------
 st.subheader("📈 Predicted Final Scores (Dataset)")
 
-results = X_test.copy()
-results["Actual"] = y_test
-results["Predicted"] = y_pred
+# Add predictions to dataset
+data["Predicted_Final_Score"] = model.predict(
+    scaler.transform(data[features])
+)
 
-st.write(results.head())
+st.subheader("📊 Dataset with Predicted Final Score")
+st.write(data.head())
 
 # -------- FEATURE IMPORTANCE --------
 st.subheader("🔍 Feature Importance")
